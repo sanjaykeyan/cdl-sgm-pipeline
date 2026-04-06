@@ -56,7 +56,7 @@ def run_pipeline(skip_fetch: bool = False) -> Generator[tuple[str, dict | None],
 
     # Step 3: Room allocation
     yield "Assigning rooms...", None
-    run_room_allocation(ROSTER_PATH, PROCESSED_DIR)
+    run_room_allocation(ROSTER_PATH, PROCESSED_DIR, panel_path=PANEL_PATH)
     yield "✓ Room allocation complete", None
 
     # Step 4: Sankey diagrams

@@ -40,9 +40,10 @@ def _assign_rooms(group_df):
     return result
 
 
-def run_room_allocation(roster_path: str, output_dir: str) -> dict:
+def run_room_allocation(roster_path: str, output_dir: str, panel_path: str | None = None) -> dict:
     """
     Assign rooms to mentors and write output file.
+    Optionally merges Room Name back into the panel dataset.
 
     Parameters
     ----------
@@ -50,6 +51,8 @@ def run_room_allocation(roster_path: str, output_dir: str) -> dict:
         Path to SGM3_Mentor_Roster.xlsx.
     output_dir : str
         Directory for SGM3_Room_Allocation.xlsx.
+    panel_path : str, optional
+        Path to the panel Excel file to update with Room Name column.
 
     Returns
     -------
@@ -114,5 +117,30 @@ def run_room_allocation(roster_path: str, output_dir: str) -> dict:
     with pd.ExcelWriter(allocation_path, engine="openpyxl") as writer:
         df_allocation.to_excel(writer, sheet_name="Room_Allocation", index=False)
         df_summary.to_excel(writer, sheet_name="Room_Summary", index=False)
+
+    # Merge Room Name back into the panel dataset
+    if panel_path and os.path.exists(panel_path):
+        room_lookup = df_rooms[["Mentor", "Stream", "Shift", "Room Name"]].drop_duplicates()
+
+        df_panel = pd.read_excel(panel_path)
+        # Panel uses original column names and "Shift 1" string format — normalise for join
+        df_panel["_ShiftInt"] = (
+            df_panel["SelectedShift"].astype(str).str.extract(r"(\d+)").astype(float).astype("Int64")
+        )
+        df_panel = df_panel.merge(
+            room_lookup.rename(columns={"Mentor": "SelectedMentor", "Stream": "SelectedStream", "Shift": "_ShiftInt"}),
+            on=["SelectedMentor", "SelectedStream", "_ShiftInt"],
+            how="left",
+        ).drop(columns=["_ShiftInt"])
+
+        # Move Room Name after SelectedShift
+        cols = df_panel.columns.tolist()
+        if "Room Name" in cols:
+            cols.remove("Room Name")
+            shift_idx = cols.index("SelectedShift") if "SelectedShift" in cols else 3
+            cols.insert(shift_idx + 1, "Room Name")
+            df_panel = df_panel[cols]
+
+        df_panel.to_excel(panel_path, index=False)
 
     return {"allocation": allocation_path}
