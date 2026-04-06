@@ -9,12 +9,11 @@ from typing import Generator
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 RAW_CSV = os.path.join(BASE_DIR, "RawData", "SGM3_SurveyResults.csv")
-MATCHING_CSV = os.path.join(BASE_DIR, "RawData", "SGM-SGM Matching-Feb 23.csv")
 PROCESSED_DIR = os.path.join(BASE_DIR, "ProcessedData")
 FIGURES_DIR = os.path.join(BASE_DIR, "analysis_outputs", "figures")
 
 PANEL_PATH = os.path.join(PROCESSED_DIR, "SGM3_SurveyResults_Processed_Panel.xlsx")
-COMPLETE_PATH = os.path.join(PROCESSED_DIR, "SGM3_Complete_Dataset_with_Participation.xlsx")
+ROSTER_PATH = os.path.join(PROCESSED_DIR, "SGM3_Mentor_Roster.xlsx")
 ALLOCATION_PATH = os.path.join(PROCESSED_DIR, "SGM3_Room_Allocation.xlsx")
 
 
@@ -52,12 +51,12 @@ def run_pipeline(skip_fetch: bool = False) -> Generator[tuple[str, dict | None],
 
     # Step 2: Process survey
     yield "Processing survey responses...", None
-    run_processing(RAW_CSV, MATCHING_CSV, PROCESSED_DIR)
+    run_processing(RAW_CSV, PROCESSED_DIR)
     yield "✓ Survey responses processed", None
 
     # Step 3: Room allocation
     yield "Assigning rooms...", None
-    run_room_allocation(COMPLETE_PATH, PROCESSED_DIR)
+    run_room_allocation(ROSTER_PATH, PROCESSED_DIR)
     yield "✓ Room allocation complete", None
 
     # Step 4: Sankey diagrams
@@ -67,7 +66,6 @@ def run_pipeline(skip_fetch: bool = False) -> Generator[tuple[str, dict | None],
 
     yield "Pipeline complete!", {
         "panel": PANEL_PATH,
-        "complete": COMPLETE_PATH,
         "allocation": ALLOCATION_PATH,
         "sankey": sankey_paths,
     }

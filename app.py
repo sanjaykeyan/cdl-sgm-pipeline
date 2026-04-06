@@ -24,7 +24,6 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RAW_CSV = os.path.join(BASE_DIR, "RawData", "SGM3_SurveyResults.csv")
 
 PANEL_PATH = os.path.join(BASE_DIR, "ProcessedData", "SGM3_SurveyResults_Processed_Panel.xlsx")
-COMPLETE_PATH = os.path.join(BASE_DIR, "ProcessedData", "SGM3_Complete_Dataset_with_Participation.xlsx")
 FIGURES_DIR = os.path.join(BASE_DIR, "analysis_outputs", "figures")
 
 SANKEY_PATHS = {
@@ -56,7 +55,6 @@ def _outputs_exist() -> bool:
     return (
         st.session_state.get("pipeline_complete", False)
         and os.path.exists(PANEL_PATH)
-        and os.path.exists(COMPLETE_PATH)
     )
 
 
@@ -188,28 +186,13 @@ if _outputs_exist():
     # Downloads
     st.subheader("Download Datasets")
 
-    dl_col1, dl_col2 = st.columns(2)
-
-    with dl_col1:
-        if os.path.exists(PANEL_PATH):
-            with open(PANEL_PATH, "rb") as f:
-                st.download_button(
-                    label="⬇ Panel Dataset (with Room Allocation)",
-                    data=f.read(),
-                    file_name="SGM3_SurveyResults_Processed_Panel.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
-                )
-
-    with dl_col2:
-        if os.path.exists(COMPLETE_PATH):
-            with open(COMPLETE_PATH, "rb") as f:
-                st.download_button(
-                    label="⬇ Complete Dataset (with Participation)",
-                    data=f.read(),
-                    file_name="SGM3_Complete_Dataset_with_Participation.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
-                )
+    if os.path.exists(PANEL_PATH):
+        with open(PANEL_PATH, "rb") as f:
+            st.download_button(
+                label="⬇ Panel Dataset (with Room Allocation)",
+                data=f.read(),
+                file_name="SGM3_SurveyResults_Processed_Panel.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
 else:
     st.info("Click **▶ Fetch & Process Data** to run the pipeline and see results here.")

@@ -3,9 +3,8 @@ Survey processing pipeline.
 Extracted from survey3_processing.ipynb.
 
 Input:  RawData/SGM3_SurveyResults.csv
-        RawData/SGM-SGM Matching-Feb 23.csv
 Output: ProcessedData/SGM3_SurveyResults_Processed_Panel.xlsx
-        ProcessedData/SGM3_Complete_Dataset_with_Participation.xlsx
+        ProcessedData/SGM3_Mentor_Roster.xlsx
 """
 
 import os
@@ -57,7 +56,7 @@ _DROP_COLS = [
 ]
 
 
-def run_processing(raw_csv: str, matching_csv: str, output_dir: str) -> dict:
+def run_processing(raw_csv: str, output_dir: str) -> dict:
     """
     Run the full survey processing pipeline.
 
@@ -65,8 +64,6 @@ def run_processing(raw_csv: str, matching_csv: str, output_dir: str) -> dict:
     ----------
     raw_csv : str
         Path to the raw Qualtrics CSV (e.g. RawData/SGM3_SurveyResults.csv).
-    matching_csv : str
-        Path to the SGM Matching CSV (e.g. RawData/SGM-SGM Matching-Feb 23.csv).
     output_dir : str
         Directory where processed files will be saved.
 
@@ -74,7 +71,7 @@ def run_processing(raw_csv: str, matching_csv: str, output_dir: str) -> dict:
     -------
     dict
         Paths to the two output Excel files:
-        { 'panel': ..., 'complete': ... }
+        { 'panel': ..., 'roster': ... }
     """
     os.makedirs(output_dir, exist_ok=True)
 
@@ -142,67 +139,21 @@ def run_processing(raw_csv: str, matching_csv: str, output_dir: str) -> dict:
     df_long.to_excel(panel_path, index=False)
 
     # -----------------------------------------------------------------
-    # 3. Build complete mentor roster from SGM Matching file
+    # 3. Build mentor roster from survey data (for room allocation)
     # -----------------------------------------------------------------
-    sgm_matching = pd.read_csv(matching_csv)
-
-    mentor_roster = []
-    for _, row in sgm_matching.iterrows():
-        room = str(row["Room Name"])
-        parts = room.split("|")
-        stream = parts[0].strip()
-        shift = int(parts[1].strip().split()[1])
-        mentors = [m.strip() for m in str(row["[People] Mentor Group"]).split(",") if m.strip()]
-        for mentor in mentors:
-            mentor_roster.append({"Mentor": mentor, "Stream": stream, "Shift": shift})
-
-    mentor_roster_df = pd.DataFrame(mentor_roster).drop_duplicates()
-
-    # Each mentor × shift × pre/post
-    complete_roster = []
-    for _, row in mentor_roster_df.iterrows():
-        for prepost in ["Pre SGM", "Post SGM"]:
-            complete_roster.append(
-                {"Mentor": row["Mentor"], "Stream": row["Stream"], "Shift": row["Shift"], "PrePost": prepost}
-            )
-    complete_roster_df = pd.DataFrame(complete_roster)
-
-    # -----------------------------------------------------------------
-    # 4. Merge survey responses onto complete roster
-    # -----------------------------------------------------------------
-    # Only completed surveys
-    survey_data = df[df["Finished"] == 1].copy()
-
-    survey_data = survey_data.rename(
-        columns={
-            "SelectedMentor": "Mentor",
-            "SelectedStream": "Stream",
-            "SelectedShift": "Shift",
-            "Pre/Post.1": "PrePost",
-        }
+    roster_cols = ["SelectedMentor", "SelectedStream", "SelectedShift"] + venture_name_cols
+    mentor_roster = df[roster_cols].rename(columns={
+        "SelectedMentor": "Mentor",
+        "SelectedStream": "Stream",
+        "SelectedShift": "Shift",
+    }).copy()
+    mentor_roster["Shift"] = (
+        mentor_roster["Shift"].astype(str).str.extract(r"(\d+)").astype(float).astype("Int64")
     )
+    mentor_roster = mentor_roster.dropna(subset=["Mentor", venture_name_cols[0]])
+    mentor_roster = mentor_roster.drop_duplicates(subset=["Mentor", "Stream", "Shift"])
 
-    # "Shift 1" → 1
-    survey_data["Shift"] = survey_data["Shift"].astype(str).str.extract(r"(\d+)").astype(int)
-    survey_data["Participated"] = True
+    roster_path = os.path.join(output_dir, "SGM3_Mentor_Roster.xlsx")
+    mentor_roster.to_excel(roster_path, index=False)
 
-    complete_dataset = complete_roster_df.merge(
-        survey_data, on=["Mentor", "Stream", "Shift", "PrePost"], how="left"
-    )
-    # Drop low-value metadata columns kept from Qualtrics
-    for col in ["Progress", "Finished", "RecordedDate", "LocationLatitude", "LocationLongitude"]:
-        if col in complete_dataset.columns:
-            complete_dataset.drop(columns=[col], inplace=True)
-
-    # Participated is True for matched rows, NaN for unmatched — convert to 0/1
-    complete_dataset["Participated"] = complete_dataset["Participated"].notna().astype(int)
-
-    # Re-order: key columns first
-    key_cols = ["Mentor", "Stream", "Shift", "PrePost", "Participated"]
-    other_cols = [c for c in complete_dataset.columns if c not in key_cols]
-    complete_dataset = complete_dataset[key_cols + other_cols]
-
-    complete_path = os.path.join(output_dir, "SGM3_Complete_Dataset_with_Participation.xlsx")
-    complete_dataset.to_excel(complete_path, index=False)
-
-    return {"panel": panel_path, "complete": complete_path}
+    return {"panel": panel_path, "roster": roster_path}

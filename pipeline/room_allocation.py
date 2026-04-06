@@ -2,9 +2,8 @@
 Room allocation pipeline.
 Extracted from sgm3_room_allocation.ipynb.
 
-Input:  ProcessedData/SGM3_Complete_Dataset_with_Participation.xlsx
+Input:  ProcessedData/SGM3_Mentor_Roster.xlsx
 Output: ProcessedData/SGM3_Room_Allocation.xlsx
-        ProcessedData/SGM3_Complete_Dataset_with_Participation.xlsx  (updated with Room Name)
 """
 
 import os
@@ -41,25 +40,25 @@ def _assign_rooms(group_df):
     return result
 
 
-def run_room_allocation(complete_path: str, output_dir: str) -> dict:
+def run_room_allocation(roster_path: str, output_dir: str) -> dict:
     """
-    Assign rooms to mentors and write two output files.
+    Assign rooms to mentors and write output file.
 
     Parameters
     ----------
-    complete_path : str
-        Path to SGM3_Complete_Dataset_with_Participation.xlsx.
+    roster_path : str
+        Path to SGM3_Mentor_Roster.xlsx.
     output_dir : str
         Directory for SGM3_Room_Allocation.xlsx.
 
     Returns
     -------
     dict
-        { 'allocation': path_to_room_allocation, 'complete': updated_complete_path }
+        { 'allocation': path_to_room_allocation }
     """
     os.makedirs(output_dir, exist_ok=True)
 
-    df = pd.read_excel(complete_path)
+    df = pd.read_excel(roster_path)
 
     # One canonical row per mentor × Stream × Shift (prefer rows with venture data)
     venture_col = _VENTURE_COLS[0]
@@ -116,21 +115,4 @@ def run_room_allocation(complete_path: str, output_dir: str) -> dict:
         df_allocation.to_excel(writer, sheet_name="Room_Allocation", index=False)
         df_summary.to_excel(writer, sheet_name="Room_Summary", index=False)
 
-    # Merge Room Name back into the complete dataset
-    room_lookup = df_rooms[["Mentor", "Stream", "Shift", "Room Name"]].drop_duplicates()
-
-    if "Room Name" in df.columns:
-        df = df.drop(columns=["Room Name"])
-
-    df_merged = df.merge(room_lookup, on=["Mentor", "Stream", "Shift"], how="left")
-
-    # Move Room Name to position 3 (after Shift)
-    cols = df_merged.columns.tolist()
-    if "Room Name" in cols:
-        cols.remove("Room Name")
-        cols.insert(3, "Room Name")
-        df_merged = df_merged[cols]
-
-    df_merged.to_excel(complete_path, index=False)
-
-    return {"allocation": allocation_path, "complete": complete_path}
+    return {"allocation": allocation_path}
