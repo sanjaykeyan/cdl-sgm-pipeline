@@ -1,0 +1,22 @@
+# Streamlit secrets — never commit real credentials
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.env
+
+# macOS
+.DS_Store
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# Confidential data — generated at runtime, never commit
+RawData/
+ProcessedData/
+analysis_outputs/figures/
+analysis_outputs/tables/
+"Final Datasets SGM3/"
